@@ -1,0 +1,30 @@
+# Environment / config
+python-dotenv
+typing_extensions
+
+# Model APIs
+openai
+google-generativeai
+
+# LangChain / LangGraph engine
+langchain-core
+langgraph
+langgraph-checkpoint-sqlite
+langchain-mcp-adapters
+mcp
+
+# Database
+psycopg[binary]
+pgvector
+
+# Document parsing
+pypdf
+python-docx
+
+# Search / GitHub / math tools
+tavily-python
+PyGithub
+sympy
+
+# Terminal UI
+textual
