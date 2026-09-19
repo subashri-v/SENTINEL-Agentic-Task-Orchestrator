@@ -34,7 +34,7 @@ print("TAVILY_API_KEY:", "Found" if TAVILY_API_KEY else "Not Found")
 print("GITHUB_TOKEN:", "Found" if GITHUB_TOKEN else "Not Found")
 
 # Gemini Configurations
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
 genai.configure(api_key=GEMINI_API_KEY, transport="rest")
 gemini = genai.GenerativeModel(GEMINI_MODEL)
 
@@ -48,7 +48,8 @@ DB_CONFIG = {
 }
 
 TOP_K = 5
-EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
+EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b"
+EMBEDDING_DIM = 2048
 
 # NVIDIA serves the embeddings (Groq has no embeddings API).
 nvidia_client = AsyncOpenAI(

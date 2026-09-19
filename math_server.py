@@ -1,5 +1,6 @@
 # math_server.py
 from mcp.server.fastmcp import FastMCP
+import re
 import sympy as sp
 import math
 
@@ -14,8 +15,9 @@ def calculate_expression(expression: str) -> str:
     """
     try:
         # Normalize common string mismatches from the LLM
-        expression = expression.replace("derivative", "sp.diff")
-        expression = expression.replace("solve", "sp.solve")
+        # (?<![\w.]) skips names that are already qualified, so "sp.solve" is not rewritten to "sp.sp.solve"
+        expression = re.sub(r"(?<![\w.])derivative\b", "sp.diff", expression)
+        expression = re.sub(r"(?<![\w.])solve\b", "sp.solve", expression)
 
         if "x" in expression or "sp." in expression:
             # Provide an explicit, safe math evaluation context

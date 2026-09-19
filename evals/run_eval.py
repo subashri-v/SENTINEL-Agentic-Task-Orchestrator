@@ -15,6 +15,7 @@ Modes:
 import argparse
 import asyncio
 import contextlib
+import contextvars
 import io
 import json
 import math
@@ -36,6 +37,29 @@ from ma_chat.graph import workflow
 EVAL_DIR = Path(__file__).parent
 ROUTES = ["MATH", "RAG", "GITHUB", "TAVILY", "SUMMARY_AGENT"]
 AGENT_NODES = set(ROUTES)
+
+
+USAGE = contextvars.ContextVar("usage", default=None)  # per-case {"calls", "tokens"} for the generator LLM
+
+
+def install_usage_counter():
+    """Wrap the chat client so every generator-LLM call is counted against the case that made it."""
+    original = config.llm_client.chat.completions.create
+
+    async def counted(*args, **kwargs):
+        resp = await original(*args, **kwargs)
+        usage = USAGE.get()
+        if usage is not None:
+            usage["calls"] += 1
+            usage["tokens"] += getattr(resp.usage, "total_tokens", 0) or 0
+        return resp
+
+    config.llm_client.chat.completions.create = counted
+
+
+def case_meta(case):
+    return {"hard": bool(case.get("hard")), "also_ok": case.get("also_ok", []),
+            "rewrite_contains": case.get("rewrite_contains")}
 
 
 class GradeSchema(TypedDict):
@@ -142,12 +166,17 @@ async def llm_grade(model, case, answer, sem):
     return None
 
 
+def matches_expected(case, answer):
+    """Every `expect_all` item must appear in the answer; an item like "a|b" is satisfied by either alternative."""
+    return all(any(norm(alt) in norm(answer) for alt in item.split("|")) for item in case["expect_all"])
+
+
 async def grade(model, case, answer, sem):
     """True/False, or None when the case has no ground truth (or the grader failed)."""
     if answer is None:
         return False if ("expect_all" in case or "reference" in case) else None
     if "expect_all" in case:
-        return all(norm(e) in norm(answer) for e in case["expect_all"])
+        return matches_expected(case, answer)
     if "reference" in case:
         return await llm_grade(model, case, answer, sem)
     return None
@@ -170,7 +199,9 @@ async def with_backoff(once, attempts, progress):
 
 async def route_job(case, sem, timeout, progress, attempts):
     async def once():
-        rec = {"id": case["id"], "expected": case["category"], "predicted": None, "error": None}
+        rec = {"id": case["id"], "expected": case["category"], "predicted": None, "error": None, **case_meta(case)}
+        usage = {"calls": 0, "tokens": 0}
+        USAGE.set(usage)
         t0 = time.perf_counter()
         try:
             state = {"question": case["question"], "messages": build_messages(case)}
@@ -180,6 +211,7 @@ async def route_job(case, sem, timeout, progress, attempts):
         except Exception as e:
             rec["error"] = repr(e)
         rec["latency_s"] = time.perf_counter() - t0
+        rec["llm_calls"], rec["llm_tokens"] = usage["calls"], usage["tokens"]
         return rec
 
     async with sem:
@@ -189,7 +221,9 @@ async def route_job(case, sem, timeout, progress, attempts):
 async def full_job(app, case, sem, timeout, progress, attempts):
     async def once():
         rec = {"id": case["id"], "expected": case["category"], "predicted": None, "error": None,
-               "first_answer": None, "final_answer": None, "retries": 0, "escalated": False}
+               "first_answer": None, "final_answer": None, "retries": 0, "escalated": False, **case_meta(case)}
+        usage = {"calls": 0, "tokens": 0}
+        USAGE.set(usage)
         cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
         payload = {"question": case["question"], "messages": build_messages(case), "retry_count": 0}
 
@@ -213,9 +247,12 @@ async def full_job(app, case, sem, timeout, progress, attempts):
             rec["critique"] = snap.values.get("system_critique")
             # The evaluator only escalates without a critique when Gemini itself errored (quota, outage, ...).
             rec["evaluator_failed"] = rec["escalated"] and not rec["critique"]
+            # Gemini calls: one per evaluation; the evaluator skips Gemini once retry_count reaches 2.
+            rec["evaluator_calls"] = 2 if (rec["escalated"] and rec["retries"] >= 2) else rec["retries"] + 1
         except Exception as e:
             rec["error"] = repr(e)
         rec["latency_s"] = time.perf_counter() - t0
+        rec["llm_calls"], rec["llm_tokens"] = usage["calls"], usage["tokens"]
         return rec
 
     async with sem:
@@ -251,8 +288,17 @@ def summarize_routing(records):
     confusion = defaultdict(Counter)
     for r in ok:
         confusion[r["expected"]][r["predicted"]] += 1
+    lenient = lambda r: r["predicted"] == r["expected"] or r["predicted"] in r.get("also_ok", [])  # noqa: E731
+    easy = [r for r in ok if not r.get("hard")]
+    hard = [r for r in ok if r.get("hard")]
+    rewrite = [r for r in ok if r.get("rewrite_contains")]
     return {"correct": hits, "n": len(ok), "errors": len(records) - len(ok),
-            "per_category": per_cat, "confusion": {k: dict(v) for k, v in confusion.items()}}
+            "per_category": per_cat, "confusion": {k: dict(v) for k, v in confusion.items()},
+            "easy": [sum(r["predicted"] == r["expected"] for r in easy), len(easy)],
+            "hard_strict": [sum(r["predicted"] == r["expected"] for r in hard), len(hard)],
+            "hard_lenient": [sum(lenient(r) for r in hard), len(hard)],
+            "rewrite_ok": [sum(norm(r["rewrite_contains"]) in norm(r.get("rewritten", "")) for r in rewrite), len(rewrite)],
+            "misrouted_ids": [r["id"] for r in ok if not lenient(r)]}
 
 
 def summarize_full(records):
@@ -266,8 +312,8 @@ def summarize_full(records):
     first_bad = [r for r in graded if not r["first_correct"]]
     first_accepted = lambda r: r["retries"] == 0 and not r["escalated"]  # noqa: E731
 
-    final_graded = [r for r in graded if not r["escalated"]]
-    recovered = [r for r in first_bad if not r["escalated"] and r["final_correct"]]
+    final_graded = [r for r in graded if not r["escalated"] and r.get("final_correct") is not None]
+    recovered = [r for r in first_bad if not r["escalated"] and r.get("final_correct")]
 
     lat = [r["latency_s"] for r in ok]
     lat_by_route = {}
@@ -287,6 +333,10 @@ def summarize_full(records):
         "evaluator_accepted_correct_first_pass": [sum(first_accepted(r) for r in first_ok), len(first_ok)],
         "evaluator_rejected_incorrect_first_pass": [sum(not first_accepted(r) for r in first_bad), len(first_bad)],
         "incorrect_first_pass_recovered_by_retry": [len(recovered), len(first_bad)],
+        "llm_calls_mean": sum(r["llm_calls"] for r in ok) / len(ok) if ok else None,
+        "llm_tokens_mean": sum(r["llm_tokens"] for r in ok) / len(ok) if ok else None,
+        "llm_tokens_p95": percentile([r["llm_tokens"] for r in ok], .95),
+        "evaluator_calls_mean": sum(r["evaluator_calls"] for r in ok) / len(ok) if ok else None,
         "latency_p50": percentile(lat, .5), "latency_p95": percentile(lat, .95),
         "latency_by_route": lat_by_route,
     }
@@ -305,8 +355,16 @@ def summarize_retrieval(records, top_k):
 def print_routing(s, title="ROUTING ACCURACY"):
     print(f"\n== {title} ==")
     print(f"overall: {rate(s['correct'], s['n'])}" + (f"   [{s['errors']} errored, excluded]" if s["errors"] else ""))
+    if s["hard_strict"][1]:
+        print(f"  easy set:            {rate(*s['easy'])}")
+        print(f"  hard set (strict):   {rate(*s['hard_strict'])}")
+        print(f"  hard set (lenient):  {rate(*s['hard_lenient'])}   (also accepts the reasonable alternative route)")
+    if s["rewrite_ok"][1]:
+        print(f"  follow-up rewriter resolved the reference: {rate(*s['rewrite_ok'])}")
     for cat, v in s["per_category"].items():
         print(f"  {cat:<14} {rate(v['correct'], v['n'])}")
+    if s["misrouted_ids"]:
+        print("  misrouted (beyond accepted alternatives): " + ", ".join(sorted(set(s["misrouted_ids"]))))
     misses = [(e, p, c) for e, row in s["confusion"].items() for p, c in row.items() if p != e]
     if misses:
         print("  misroutes (expected -> predicted): " + ", ".join(f"{e}->{p} x{c}" for e, p, c in misses))
@@ -318,7 +376,7 @@ def print_full(s):
     print("\n== PIPELINE OUTCOMES ==")
     print(f"cases: {s['n']}   errored: {s['errors']}")
     if s["evaluator_failed"]:
-        print(f"!! {s['evaluator_failed']} case(s) excluded: the Gemini evaluator itself failed (likely quota), "
+        print(f"!! {s['evaluator_failed']} case(s) excluded: the Gemini evaluator itself failed (quota, retired model or outage), "
               "which the graph treats as an escalation. Rerun those when quota resets.")
     print(f"auto-resolved: {rate(s['auto_resolved'], ok)}")
     print(f"escalated to human: {rate(s['escalated'], ok)}")
@@ -330,6 +388,12 @@ def print_full(s):
     print(f"evaluator accepted first-pass answers that were correct:   {rate(*s['evaluator_accepted_correct_first_pass'])}")
     print(f"evaluator rejected first-pass answers that were incorrect: {rate(*s['evaluator_rejected_incorrect_first_pass'])}")
     print(f"incorrect first-pass answers fixed by retry:  {rate(*s['incorrect_first_pass_recovered_by_retry'])}")
+
+    if s["llm_calls_mean"] is not None:
+        print("\n== COST PER QUERY ==")
+        print(f"generator LLM: {s['llm_calls_mean']:.1f} calls, {s['llm_tokens_mean']:.0f} tokens on average "
+              f"(p95 {s['llm_tokens_p95']:.0f} tokens)")
+        print(f"Gemini evaluator: {s['evaluator_calls_mean']:.1f} calls per query on average")
 
     print("\n== LATENCY (end-to-end seconds) ==")
     if s["latency_p50"] is not None:
@@ -361,6 +425,14 @@ def select_cases(args):
                 kept.append(c)
                 seen[c["category"]] += 1
         cases = kept
+    if args.skip_from:
+        done = set()
+        for f in args.skip_from:
+            data = json.loads(Path(f).read_text(encoding="utf-8"))
+            for section in ("route", "full"):
+                if section in data:
+                    done |= {r["id"] for r in data[section]["records"] if not r["error"]}
+        cases = [c for c in cases if c["id"] not in done]
     return cases * args.repeats
 
 
@@ -393,11 +465,18 @@ async def run_full(args, cases):
             return
         case = by_id[r["id"]]
         r["first_correct"] = await grade(model, case, r["first_answer"], sem_g)
-        r["final_correct"] = await grade(model, case, r["final_answer"], sem_g)
+        if r["final_answer"] == r["first_answer"]:  # no retry changed the answer: reuse the grade, save a call
+            r["final_correct"] = r["first_correct"]
+        else:
+            r["final_correct"] = await grade(model, case, r["final_answer"], sem_g)
 
     await asyncio.gather(*(grade_rec(r) for r in recs))
-    summary = summarize_full(recs)
-    print_full(summary)
+    try:
+        summary = summarize_full(recs)
+        print_full(summary)
+    except Exception as e:  # never lose a paid-for run to a reporting bug; re-summarize with evals.aggregate
+        log(f"[summary failed: {e!r}] raw records are still saved")
+        summary = None
     return {"summary": summary, "records": recs}
 
 
@@ -417,6 +496,7 @@ async def run_retrieval(args):
 
 
 async def main(args):
+    install_usage_counter()
     if args.generator_model:
         config.LLM_MODEL = args.generator_model  # nodes read config.LLM_MODEL at call time
     result = {"timestamp": datetime.now().isoformat(timespec="seconds"), "args": vars(args),
@@ -450,6 +530,8 @@ if __name__ == "__main__":
     p.add_argument("--category", nargs="+", choices=ROUTES, help="only these expected routes")
     p.add_argument("--per-category", type=int, help="take only the first N cases of each category")
     p.add_argument("--repeats", type=int, default=1, help="run each case N times (LLM output is nondeterministic)")
+    p.add_argument("--skip-from", nargs="+", metavar="RESULT_JSON",
+                   help="skip cases that already completed without error in these result files")
     p.add_argument("--concurrency", type=int, default=3)
     p.add_argument("--timeout", type=float, default=180, help="per-case timeout in seconds")
     p.add_argument("--attempts", type=int, default=3, help="max tries per case when the API rate-limits (429)")

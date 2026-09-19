@@ -23,13 +23,13 @@ async def init_db():
     await register_vector_async(config.conn)
 
     async with config.conn.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(f"""
             CREATE TABLE IF NOT EXISTS document_chunks (
                 id SERIAL PRIMARY KEY,
                 source_file TEXT,
                 chunk_number INT,
                 content TEXT,
-                embedding vector(1024)
+                embedding vector({config.EMBEDDING_DIM})
             );
         """)
 
@@ -118,7 +118,7 @@ async def ingest_document(filepath):
 
 async def get_embedding(text, is_query=False):
     if not text or not text.strip():
-        return [0.0] * 1024
+        return [0.0] * config.EMBEDDING_DIM
     input_type = "query" if is_query else "passage"
     response = await config.nvidia_client.embeddings.create(
         input=[text],

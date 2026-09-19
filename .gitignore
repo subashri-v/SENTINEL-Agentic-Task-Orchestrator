@@ -41,3 +41,6 @@ Thumbs.db
 
 # Eval run output
 evals/results/
+
+# Sample documents for RAG testing
+samples/
