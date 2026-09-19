@@ -418,9 +418,9 @@ async def run_retrieval(args):
 
 async def main(args):
     if args.generator_model:
-        config.NVIDIA_MODEL = args.generator_model  # nodes read config.NVIDIA_MODEL at call time
+        config.LLM_MODEL = args.generator_model  # nodes read config.LLM_MODEL at call time
     result = {"timestamp": datetime.now().isoformat(timespec="seconds"), "args": vars(args),
-              "generator_model": config.NVIDIA_MODEL, "in_loop_evaluator_model": config.GEMINI_MODEL,
+              "generator_model": config.LLM_MODEL, "in_loop_evaluator_model": config.GEMINI_MODEL,
               "grader_model": args.grader_model}
     try:
         if args.mode in ("route", "full", "all"):
@@ -453,7 +453,7 @@ if __name__ == "__main__":
     p.add_argument("--concurrency", type=int, default=3)
     p.add_argument("--timeout", type=float, default=180, help="per-case timeout in seconds")
     p.add_argument("--attempts", type=int, default=3, help="max tries per case when the API rate-limits (429)")
-    p.add_argument("--generator-model", help="override config.NVIDIA_MODEL for this run (does not edit config.py)")
+    p.add_argument("--generator-model", help="override config.LLM_MODEL for this run (does not edit config.py)")
     p.add_argument("--grader-model", default=config.GEMINI_MODEL,
                    help="Gemini model used to grade reference-based cases")
     args = p.parse_args()

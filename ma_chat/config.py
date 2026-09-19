@@ -21,12 +21,14 @@ load_dotenv()
 
 # API Keys Initialization
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 print("--- API Key Status ---")
 print("NVIDIA_API_KEY:", "Found" if NVIDIA_API_KEY else "Not Found")
+print("GROQ_API_KEY:", "Found" if GROQ_API_KEY else "Not Found")
 print("GEMINI_API_KEY:", "Found" if GEMINI_API_KEY else "Not Found")
 print("TAVILY_API_KEY:", "Found" if TAVILY_API_KEY else "Not Found")
 print("GITHUB_TOKEN:", "Found" if GITHUB_TOKEN else "Not Found")
@@ -47,12 +49,20 @@ DB_CONFIG = {
 
 TOP_K = 5
 EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
-NVIDIA_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
+# NVIDIA serves the embeddings (Groq has no embeddings API).
 nvidia_client = AsyncOpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=NVIDIA_API_KEY
 )
+
+# Chat/tool-calling LLM used by every agent. Groq when GROQ_API_KEY is set, otherwise NVIDIA.
+if GROQ_API_KEY:
+    LLM_MODEL = "openai/gpt-oss-120b"
+    llm_client = AsyncOpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
+else:
+    LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+    llm_client = nvidia_client
 
 # Keep standard clients for threading offload wrappers
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY) if TAVILY_API_KEY else None

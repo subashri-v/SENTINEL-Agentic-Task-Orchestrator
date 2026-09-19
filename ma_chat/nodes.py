@@ -34,8 +34,8 @@ async def node_math_agent(state: AgentState) -> dict:
     )
 
     # 3. Request inference with converted tools structure bound
-    response = await config.nvidia_client.chat.completions.create(
-        model=config.NVIDIA_MODEL,
+    response = await config.llm_client.chat.completions.create(
+        model=config.LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
         tools=openai_tools,
         timeout=60
@@ -95,8 +95,8 @@ async def node_rag_agent(state: AgentState) -> dict:
     context_text = "\n\n".join(context_parts)
     prompt = f"Answer from context ONLY.\n\nCONTEXT:\n{context_text}\n\nQUESTION:\n{question}"
 
-    response = await config.nvidia_client.chat.completions.create(
-        model=config.NVIDIA_MODEL,
+    response = await config.llm_client.chat.completions.create(
+        model=config.LLM_MODEL,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -130,8 +130,8 @@ async def node_tavily_agent(state: AgentState) -> dict:
         context_text = "\n\n".join(context_parts)
         prompt = f"Answer using the web data below concisely.\n\nCONTEXT:\n{context_text}\n\nQUESTION:\n{question}"
 
-        response = await config.nvidia_client.chat.completions.create(
-            model=config.NVIDIA_MODEL,
+        response = await config.llm_client.chat.completions.create(
+            model=config.LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -172,8 +172,8 @@ async def node_github_agent(state: AgentState) -> dict:
             f"Query: {question}"
         )
 
-        repo_res = await config.nvidia_client.chat.completions.create(
-            model=config.NVIDIA_MODEL,
+        repo_res = await config.llm_client.chat.completions.create(
+            model=config.LLM_MODEL,
             messages=[{"role": "user", "content": extractor}]
         )
         repo_name = repo_res.choices[0].message.content.strip() if repo_res.choices[0].message.content else "NONE"
@@ -200,8 +200,8 @@ async def node_github_agent(state: AgentState) -> dict:
             Answer the user's question accurately. Make sure to adhere to any formatting instructions given in the question!
             """
 
-            response = await config.nvidia_client.chat.completions.create(
-                model=config.NVIDIA_MODEL,
+            response = await config.llm_client.chat.completions.create(
+                model=config.LLM_MODEL,
                 messages=[{"role": "user", "content": prompt}]
             )
             ai_answer = response.choices[0].message.content
@@ -224,8 +224,8 @@ async def node_github_agent(state: AgentState) -> dict:
         ctx = f"Repo: {full_name}\nDesc: {description}\nOpen Issues:\n{issue_text}"
         prompt = f"Answer using this repository context.\n\nCONTEXT:\n{ctx}\n\nQUESTION:\n{question}\nCRITIQUE: {critique}"
 
-        response = await config.nvidia_client.chat.completions.create(
-            model=config.NVIDIA_MODEL,
+        response = await config.llm_client.chat.completions.create(
+            model=config.LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
         ai_answer = response.choices[0].message.content
@@ -267,8 +267,8 @@ async def node_summary_agent(state: AgentState) -> dict:
     Fulfill their request explicitly based on the logs above.
     """
 
-    response = await config.nvidia_client.chat.completions.create(
-        model=config.NVIDIA_MODEL,
+    response = await config.llm_client.chat.completions.create(
+        model=config.LLM_MODEL,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -310,8 +310,8 @@ async def node_orchestrator(state: AgentState) -> dict:
     Latest User Query: "{state['question']}"
     """
 
-    response = await config.nvidia_client.chat.completions.create(
-        model=config.NVIDIA_MODEL,
+    response = await config.llm_client.chat.completions.create(
+        model=config.LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
     )
     raw_content = response.choices[0].message.content
