@@ -1,0 +1,48 @@
+{"id": "math-01", "category": "MATH", "question": "What is 2**10 * 5.5?", "expect_all": ["5632"]}
+{"id": "math-02", "category": "MATH", "question": "Solve 3*x**2 + 2*x - 5 = 0 for x.", "expect_all": ["-5/3", "1"]}
+{"id": "math-03", "category": "MATH", "question": "Find the derivative of x**3 + 2*x with respect to x.", "expect_all": ["3*x**2"]}
+{"id": "math-04", "category": "MATH", "question": "What is the indefinite integral of x**2 with respect to x?", "expect_all": ["x**3/3"]}
+{"id": "math-05", "category": "MATH", "question": "Find the roots of x**2 - 9.", "expect_all": ["-3", "3"]}
+{"id": "math-06", "category": "MATH", "question": "Differentiate x*sin(x) with respect to x.", "expect_all": ["x*cos(x)", "sin(x)"]}
+{"id": "math-07", "category": "MATH", "question": "Factor x**2 - 5*x + 6.", "expect_all": ["(x-3)*(x-2)"]}
+{"id": "math-08", "category": "MATH", "question": "What is 17 multiplied by 23?", "expect_all": ["391"]}
+{"id": "math-09", "category": "MATH", "question": "What is the square root of 1764?", "expect_all": ["42"]}
+{"id": "math-10", "category": "MATH", "question": "Expand (x + 1)**3.", "expect_all": ["x**3+3*x**2+3*x+1"]}
+{"id": "math-11", "category": "MATH", "question": "Solve 2*x + 6 = 0.", "expect_all": ["-3"]}
+{"id": "math-12", "category": "MATH", "question": "Differentiate exp(2*x) with respect to x.", "expect_all": ["2*exp(2*x)"]}
+{"id": "tavily-01", "category": "TAVILY", "question": "What are the latest headlines in AI news this week?"}
+{"id": "tavily-02", "category": "TAVILY", "question": "Who won the most recent Formula 1 Grand Prix?"}
+{"id": "tavily-03", "category": "TAVILY", "question": "What is the current weather forecast in Chennai?"}
+{"id": "tavily-04", "category": "TAVILY", "question": "Search the web for the newest release of the Python programming language."}
+{"id": "tavily-05", "category": "TAVILY", "question": "What happened in the stock market today?"}
+{"id": "tavily-06", "category": "TAVILY", "question": "Look up recent news about the SpaceX Starship launch."}
+{"id": "tavily-07", "category": "TAVILY", "question": "What is the latest iPhone model that Apple has announced?"}
+{"id": "tavily-08", "category": "TAVILY", "question": "Find recent news on renewable energy policy in the EU."}
+{"id": "tavily-09", "category": "TAVILY", "question": "What are people saying online about the newest OpenAI announcement?"}
+{"id": "tavily-10", "category": "TAVILY", "question": "Who is leading the latest cricket World Cup tournament right now?"}
+{"id": "github-01", "category": "GITHUB", "question": "What are the open issues in the pallets/flask repository?"}
+{"id": "github-02", "category": "GITHUB", "question": "Show me the description of the psf/requests repo."}
+{"id": "github-03", "category": "GITHUB", "question": "List the open pull requests for langchain-ai/langgraph."}
+{"id": "github-04", "category": "GITHUB", "question": "How many repositories do I have on my GitHub account?"}
+{"id": "github-05", "category": "GITHUB", "question": "What is the latest issue opened in tiangolo/fastapi?"}
+{"id": "github-06", "category": "GITHUB", "question": "Give me details about the microsoft/vscode repo."}
+{"id": "github-07", "category": "GITHUB", "question": "Are there any open bug issues in django/django?"}
+{"id": "github-08", "category": "GITHUB", "question": "And what are its open issues?", "history": [["user", "Tell me about the pallets/flask repository."], ["assistant", "pallets/flask is a lightweight Python web framework."]]}
+{"id": "rag-01", "category": "RAG", "question": "According to my uploaded documents, what are the main conclusions?"}
+{"id": "rag-02", "category": "RAG", "question": "What does the ingested document say about eligibility requirements?"}
+{"id": "rag-03", "category": "RAG", "question": "Based on the files I uploaded, what deadlines are mentioned?"}
+{"id": "rag-04", "category": "RAG", "question": "Search my documents for the section on fees and tuition."}
+{"id": "rag-05", "category": "RAG", "question": "What does my uploaded PDF say about the application process?"}
+{"id": "rag-06", "category": "RAG", "question": "Find the part of my internal files that describes the project scope."}
+{"id": "rag-07", "category": "RAG", "question": "Which universities are mentioned in the documents I ingested?"}
+{"id": "rag-08", "category": "RAG", "question": "Summarize the key requirements listed in my uploaded resume document."}
+{"id": "rag-09", "category": "RAG", "question": "What is stated in the uploaded document about contact information?"}
+{"id": "rag-10", "category": "RAG", "question": "Look in my documents for anything on scholarship criteria."}
+{"id": "summary_agent-01", "category": "SUMMARY_AGENT", "question": "Summarize our conversation so far.", "history": [["user", "What is a Python decorator?"], ["assistant", "A decorator is a function that wraps another function to extend its behavior, applied with the @ syntax."]], "reference": "The conversation was about Python decorators: a decorator wraps a function to extend its behavior, using @ syntax."}
+{"id": "summary_agent-02", "category": "SUMMARY_AGENT", "question": "What was the last question I asked you, and what was your answer?", "history": [["user", "What is 12 times 12?"], ["assistant", "12 times 12 is 144."]], "reference": "The user asked what 12 times 12 is, and the answer was 144."}
+{"id": "summary_agent-03", "category": "SUMMARY_AGENT", "question": "Recap what we have discussed in one sentence.", "history": [["user", "How often should I water tomato plants?"], ["assistant", "Water tomato plants deeply about two to three times a week, more often in hot weather."]], "reference": "It discussed watering tomato plants: deeply two to three times a week, more in hot weather."}
+{"id": "summary_agent-04", "category": "SUMMARY_AGENT", "question": "Give me a summary of this chat session.", "history": [["user", "Who wrote Pride and Prejudice?"], ["assistant", "Jane Austen wrote Pride and Prejudice."], ["user", "When was it published?"], ["assistant", "It was published in 1813."]], "reference": "The chat covered Pride and Prejudice: written by Jane Austen and published in 1813."}
+{"id": "summary_agent-05", "category": "SUMMARY_AGENT", "question": "What did I ask you earlier in this chat?", "history": [["user", "What is the capital of France?"], ["assistant", "The capital of France is Paris."]], "reference": "The user asked what the capital of France is."}
+{"id": "summary_agent-06", "category": "SUMMARY_AGENT", "question": "Summarize the thread so far in bullet points.", "history": [["user", "Explain what an API is."], ["assistant", "An API is an interface that lets software programs communicate with each other."], ["user", "Give an example."], ["assistant", "A weather app calling a weather service's API to fetch the forecast."]], "reference": "It explained that an API lets programs communicate, with the example of a weather app fetching a forecast."}
+{"id": "summary_agent-07", "category": "SUMMARY_AGENT", "question": "Remind me what conversion we just did.", "history": [["user", "Convert 5 miles to kilometers."], ["assistant", "5 miles is about 8.05 kilometers."]], "reference": "It converted 5 miles to about 8.05 kilometers."}
+{"id": "summary_agent-08", "category": "SUMMARY_AGENT", "question": "Can you recap our chat so far?", "history": [["user", "What does HTTP stand for?"], ["assistant", "HTTP stands for HyperText Transfer Protocol."]], "reference": "The chat covered that HTTP stands for HyperText Transfer Protocol."}

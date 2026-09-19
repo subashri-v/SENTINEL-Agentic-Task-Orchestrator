@@ -1,0 +1,4 @@
+# One JSON object per line. Lines starting with '#' are ignored.
+# Fill these in from documents you have ingested with ingest.py, e.g.:
+# {"question": "What is the application deadline?", "expected_source": "handbook.pdf", "expected_text": "March 15"}
+# expected_source: file name as stored (basename). expected_text (optional): a phrase the right chunk must contain.
