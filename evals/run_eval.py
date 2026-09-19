@@ -211,6 +211,8 @@ async def full_job(app, case, sem, timeout, progress, attempts):
             rec["retries"] = snap.values.get("retry_count", 0)
             rec["final_answer"] = answer_text(snap.values.get("answer"))
             rec["critique"] = snap.values.get("system_critique")
+            # The evaluator only escalates without a critique when Gemini itself errored (quota, outage, ...).
+            rec["evaluator_failed"] = rec["escalated"] and not rec["critique"]
         except Exception as e:
             rec["error"] = repr(e)
         rec["latency_s"] = time.perf_counter() - t0
@@ -254,6 +256,8 @@ def summarize_routing(records):
 
 
 def summarize_full(records):
+    evaluator_failed = sum(bool(r.get("evaluator_failed")) for r in records)
+    records = [r for r in records if not r.get("evaluator_failed")]  # not a quality signal; reported separately
     ok = [r for r in records if not r["error"]]
     accepted = [r for r in ok if not r["escalated"]]
     graded = [r for r in ok if r.get("first_correct") is not None]
@@ -273,7 +277,7 @@ def summarize_full(records):
             lat_by_route[route] = {"n": len(vals), "p50": percentile(vals, .5), "p95": percentile(vals, .95)}
 
     return {
-        "n": len(records), "errors": len(records) - len(ok),
+        "n": len(records), "errors": len(records) - len(ok), "evaluator_failed": evaluator_failed,
         "routing": summarize_routing(records),
         "auto_resolved": len(accepted), "escalated": len(ok) - len(accepted),
         "retry_distribution": dict(Counter(r["retries"] for r in ok)),
@@ -313,6 +317,9 @@ def print_full(s):
     ok = s["n"] - s["errors"]
     print("\n== PIPELINE OUTCOMES ==")
     print(f"cases: {s['n']}   errored: {s['errors']}")
+    if s["evaluator_failed"]:
+        print(f"!! {s['evaluator_failed']} case(s) excluded: the Gemini evaluator itself failed (likely quota), "
+              "which the graph treats as an escalation. Rerun those when quota resets.")
     print(f"auto-resolved: {rate(s['auto_resolved'], ok)}")
     print(f"escalated to human: {rate(s['escalated'], ok)}")
     print(f"retries per case: {dict(sorted(s['retry_distribution'].items()))}")

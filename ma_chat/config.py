@@ -47,7 +47,7 @@ DB_CONFIG = {
 
 TOP_K = 5
 EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
-NVIDIA_MODEL = "meta/llama-3.1-70b-instruct"
+NVIDIA_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
 nvidia_client = AsyncOpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
